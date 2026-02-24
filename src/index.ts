@@ -4,6 +4,7 @@
 // @match       https://*/*
 // @grant       GM.getValue
 // @grant       GM.setValue
+// @grant       GM.deleteValue
 // @grant       GM.xmlHttpRequest
 // @grant       GM.registerMenuCommand
 // @version     1.0
@@ -12,104 +13,164 @@
 // ==/UserScript==
 
 import {
-  array as zArray,
-  boolean as zBoolean,
-  discriminatedUnion as zDiscriminatedUnion,
-  literal as zLiteral,
-  instanceof as zInstanceOf,
-  number as zNumber,
-  object as zObject,
-  record as zRecord,
-  string as zString
-} from 'zod';
+  safeParse as safeParse,
+  array as vArray,
+  boolean as vBoolean,
+  literal as vLiteral,
+  instance as vInstance,
+  intersect as vIntersect,
+  object as vObject,
+  optional as vOptional,
+  pipe as vPipe,
+  record as vRecord,
+  string as vString,
+  transform as vTransform,
+  variant as vVariant
+} from 'valibot';
+
+const policySchema = vObject({
+  enabled: vBoolean(),
+  allowedOrigins: vPipe(vArray(vString()), vTransform(value => new Set(value))),
+});
+
+const messageSchema = vIntersect([
+  vVariant(
+    'kind',
+    [
+      vObject({ kind: vLiteral('init') }),
+      vObject({
+        kind: vLiteral('fetch'),
+        method: vString(),
+        url: vString(),
+        headers: vOptional(vRecord(vString(), vString())),
+        body: vOptional(vInstance(Blob)),
+      }),
+      vObject({
+        kind: vLiteral('checkStatus'),
+        url: vString(),
+      }),
+      vObject({
+        kind: vLiteral('requestPermission'),
+        url: vString(),
+      }),
+    ]
+  ),
+  vObject({
+    is: vLiteral('cors-manager'),
+    messageId: vString()
+  })
+]);
+
+export type { policySchema, messageSchema };
 
 (async () => {
-  // Utils
   const safeJSONParse = (string: string) => {
     try { return JSON.parse(string); }
     catch { return null; }
   };
 
-  const policySchema = zObject({
-    enabled: zBoolean().default(false),
-    allowedOrigins: zArray(zString()).transform(origins => new Set(origins)).prefault([]),
-    lastPromptAt: zNumber().default(0),
-  }).prefault({});
-
-  const messageSchema = zDiscriminatedUnion(
-    'kind',
-    [
-      zObject({ kind: zLiteral('init') }),
-      zObject({
-        kind: zLiteral('fetch'),
-        method: zString(),
-        url: zString(),
-        headers: zRecord(zString(), zString()).optional(),
-        body: zInstanceOf(Blob).optional(),
-      })
-    ]
-  ).and(zObject({
-    is: zLiteral('cors-manager'),
-    messageId: zString()
-  }));
+  const safeURLParse = (url: string) => {
+    try { return new URL(url, window.location.href); }
+    catch { return null; }
+  };
 
   const origin = window.location.origin;
   const policyKey = `cors_policy__:${origin}`;
-  const policy = policySchema.parse(safeJSONParse(await GM.getValue<string>(policyKey, '{}')));
-  const savePolicy = () => GM.setValue(policyKey, {
-    enabled: policy.enabled,
-    allowedOrigins: Array.from(policy.allowedOrigins),
-  });
+  const policyResult = safeParse(policySchema, safeJSONParse(await GM.getValue<string>(policyKey, '{}')));
+  const policy = {
+    ...(policyResult.success ? policyResult.output : { enabled: false, allowedOrigins: new Set() }),
+    deniedOrigins: new Set(),
+    lastPromptAt: 0,
+  };
+
+  const savePolicy = () => !policy.enabled
+    ? GM.deleteValue(policyKey)
+    : GM.setValue(policyKey, {
+      enabled: policy.enabled,
+      allowedOrigins: Array.from(policy.allowedOrigins),
+    });
 
   window.addEventListener('message', async event => {
     if (event.origin !== origin) return;
 
-    const dataResult = messageSchema.safeParse(event.data);
+    const dataResult = safeParse(messageSchema, event.data);
     if (!dataResult.success) return;
 
-    const data = dataResult.data;
-    const reply = (payload: {}) => window.postMessage(
-      JSON.stringify({ messageId: data.messageId, ...payload }),
+    const data = dataResult.output;
+    const reply = (payload: Record<string, unknown>) => window.postMessage(
+      { is: 'cors-manager', messageId: data.messageId, ...payload },
       origin
     );
 
-    if (data.kind === 'init' && Date.now() - policy.lastPromptAt > 10 * 1000) {
-      const allowKeyword = 'trust';
-      const userInput = prompt(
-        `[cors-manager] If you trust this site, please type "${allowKeyword}" ` +
-        `into the input field below.\n` +
-        `Current Origin: ${origin}`
-      );
-
-      if (userInput?.trim() === allowKeyword) {
-        policy.enabled = true;
-        await savePolicy();
+    if (data.kind === 'init') {
+      if (policy.enabled) {
+        reply({ success: true });
+        return;
       }
 
-      policy.lastPromptAt = Date.now();
+      if (Date.now() - policy.lastPromptAt > 10 * 1000) {
+        const allowKeyword = 'trust';
+        const userInput = prompt(
+          `[cors-manager]\n\nIf you trust this site, please type "${allowKeyword}" ` +
+          `into the input field below.\n` +
+          `Current Origin: ${origin}`
+        );
+
+        if (userInput?.trim() === allowKeyword) {
+          policy.enabled = true;
+          await savePolicy();
+          reply({ success: true });
+        }
+
+        policy.lastPromptAt = Date.now();
+      }
+
       return;
     }
 
-    if (data.kind === 'fetch' && policy.enabled) {
+    if (!policy.enabled) {
+      return;
+    }
+
+    const url = safeURLParse(data.url);
+    const targetOrigin = url?.origin;
+    if (!targetOrigin) {
+      return;
+    }
+
+    if (data.kind === 'checkStatus') {
+      return reply({
+        success: true,
+        isAllowed: !policy.deniedOrigins.has(targetOrigin) && policy.allowedOrigins.has(targetOrigin)
+      });
+    }
+
+    if (policy.deniedOrigins.has(targetOrigin)) {
+      return reply({ success: false, reason: 'DENIED' });
+    }
+
+    if (!policy.allowedOrigins.has(targetOrigin)) {
+      const allowKeyword = `allow_${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`;
+      const userInput = prompt(
+        `[cors-manager]\n\nIf you want to allow this site to send requests to ${targetOrigin}, ` +
+        `please type "${allowKeyword}" into the input field below.\n` +
+        `Current Origin: ${origin}`
+      );
+
+      if (userInput?.trim() !== allowKeyword) {
+        return reply({ success: false, reason: 'DENIED' });
+      }
+
+      policy.allowedOrigins.add(targetOrigin);
+      await savePolicy();
+    }
+
+    if (data.kind === 'requestPermission') {
+      return reply({ success: true });
+    }
+
+    if (data.kind === 'fetch') {
       try {
-        const url = new URL(data.url, window.location.href);
-        const targetOrigin = url.origin;
-        if (!policy.allowedOrigins.has(targetOrigin)) {
-          const allowKeyword = `allow_${Math.floor(Math.random() * 100).toString().padStart(2, '0')}`;
-          const userInput = prompt(
-            `[cors-manager] If you want to allow this site to send requests to ${targetOrigin}, ` +
-            `please type "${allowKeyword}" into the input field below.\n` +
-            `Current Origin: ${origin}`
-          );
-
-          if (userInput?.trim() !== allowKeyword) {
-            return reply({ success: false, reason: 'DENIED' });
-          }
-
-          policy.allowedOrigins.add(targetOrigin);
-          await savePolicy();
-        }
-
         type Method = Parameters<typeof GM.xmlHttpRequest>[0]['method'];
         GM.xmlHttpRequest({
           method: data.method as Method,
@@ -140,5 +201,12 @@ import {
         });
       }
     }
+  });
+
+  GM.registerMenuCommand('Revoke Permissions', async () => {
+    policy.enabled = false;
+    policy.allowedOrigins.clear();
+    await savePolicy();
+    alert('[cors-manager]\n\nSuccessfully revoked permissions!');
   });
 })();

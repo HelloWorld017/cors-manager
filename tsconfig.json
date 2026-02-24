@@ -24,6 +24,7 @@
     "allowJs": true,
     "skipLibCheck": true,
     "emitDeclarationOnly": true,
+    "rootDir": "./src",
     "outDir": "./dist",
     "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
     "incremental": true,
