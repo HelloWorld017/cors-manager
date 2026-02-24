@@ -2,8 +2,8 @@
 `cors-manager` is a permission manager for requesting with force-CORS.
 
 It consists of:
-* a userscript runtime that performs privileged requests via `GM.xmlHttpRequest`
-* a typescript library with `fetch()`-like API, by talking to the userscript through `window.postMessage`
+- a userscript runtime that performs privileged requests via `GM.xmlHttpRequest`
+- a typescript library with `fetch()`-like API, by talking to the userscript through `window.postMessage`
 
 ## Getting Started
 
@@ -12,14 +12,29 @@ npm add cors-manager
 ```
 
 ```ts
-import { initialize, isInitialized, checkStatus, fetchCors } from 'cors-manager';
+import {
+  initialize,
+  isInitialized,
+  checkStatus,
+  requestPermission,
+  fetchCors,
+} from 'cors-manager';
 
 // initialize(): Promise<boolean>
 window.addEventListener('load', () => initialize(), { once: true });
 
 // When the user needs request
 if (isInitialized()) {
-  const response = await fetchCors('https://api.example.com/data', {
+  const targetUrl = 'https://api.example.com/data';
+
+  if (!(await checkStatus(targetUrl))) {
+    const granted = await requestPermission(targetUrl);
+    if (!granted) {
+      throw new Error('Permission denied by user.');
+    }
+  }
+
+  const response = await fetchCors(targetUrl, {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -55,9 +70,23 @@ Starts the handshake with the userscript.
 
 ### `isInitialized(): boolean`
 
-Returns the in-memory initialization flag set by `initialize()`.
+Returns whether the site is approved by `initialize()`.
 
-### `fetchCors(input, init?): Promise<Response>`
+### `checkStatus(url: RequestInfo | URL): Promise<boolean>`
+
+Checks whether the target origin is currently allowed.
+
+- Returns `true` when the target origin is already allowed
+- Returns `false` when not allowed, denied, or when no reply is received in time
+
+### `requestPermission(url: RequestInfo | URL): Promise<boolean>`
+
+Requests permission for the target origin.
+
+- Returns `true` when the origin is approved
+- Returns `false` when denied or when no reply is received in time
+
+### `fetchCors(url: RequestInfo | URL, init?: RequestInit): Promise<Response>`
 
 Sends a request through the userscript channel.
 
@@ -66,4 +95,4 @@ Sends a request through the userscript channel.
 - Returns a normal `Response` object on success
 
 ## Acknowledgements
-[rxliuli/cors-unblock](https://github.com/rxliuli/cors-unblock)
+- [rxliuli/cors-unblock](https://github.com/rxliuli/cors-unblock)
