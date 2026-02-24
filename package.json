@@ -1,19 +1,23 @@
 {
   "name": "cors-manager",
   "version": "1.0.0",
-  "description": "",
+  "description": "Manage the policy of CORS for allowed origins",
   "main": "index.js",
   "scripts": {
     "build": "pnpm run build:index",
     "build:index": "esbuild src/index.ts --outfile=dist/index.js --bundle --banner:js=\"$(sed -n '/==UserScript==/,/==\\/UserScript==/p' src/index.ts)\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "cors",
+    "userscript"
+  ],
+  "author": "nenw* <khi@nenw.dev>",
+  "license": "MIT",
   "packageManager": "pnpm@10.18.3",
   "devDependencies": {
     "@types/tampermonkey": "^5.0.5",
-    "esbuild": "^0.27.3"
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "zod": "^4.3.6"
