@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    // Strictness
+    "strict": true,
+    "exactOptionalPropertyTypes": false,
+
+    // Module / Resolution
+    "module": "preserve",
+    "moduleDetection": "force",
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "esModuleInterop": true,
+
+    // Types
+    "target": "esnext",
+    "lib": ["esnext", "dom", "dom.iterable", "dom.asynciterable"],
+    "types": [
+      "tampermonkey"
+    ],
+    "typeRoots": ["./node_modules", "./node_modules/@types"],
+
+    // Others
+    "jsx": "react-jsx",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "emitDeclarationOnly": true,
+    "outDir": "./dist",
+    "tsBuildInfoFile": "./tsconfig.tsbuildinfo",
+    "incremental": true,
+    "composite": true
+  },
+
+  "include": [
+    "src/**/*.ts"
+  ]
+}

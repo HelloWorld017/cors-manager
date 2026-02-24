@@ -1,0 +1,21 @@
+{
+  "name": "cors-manager",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "pnpm run build:index",
+    "build:index": "esbuild src/index.ts --outfile=dist/index.js --bundle --banner:js=\"$(sed -n '/==UserScript==/,/==\\/UserScript==/p' src/index.ts)\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.18.3",
+  "devDependencies": {
+    "@types/tampermonkey": "^5.0.5",
+    "esbuild": "^0.27.3"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}
