@@ -5,6 +5,8 @@ It consists of:
 - a userscript runtime that performs privileged requests via `GM.xmlHttpRequest`
 - a typescript library with `fetch()`-like API, by talking to the userscript through `window.postMessage`
 
+[Install Userscript](https://cdn.jsdelivr.net/npm/cors-manager/dist/cors-manager.user.js)
+
 ## Getting Started
 
 ```sh
