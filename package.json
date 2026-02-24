@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "build": "pnpm run clean && concurrently pnpm:build:*",
-    "build:index": "esbuild src/index.ts --outfile=dist/index.js --bundle --banner:js=\"$(sed -n '/==UserScript==/,/==\\/UserScript==/p' src/index.ts)\"",
+    "build:index": "pnpm run build-meta && pnpm run build-userscript",
     "build:library": "esbuild src/library.ts --outfile=dist/library.js",
     "build:types": "tsc",
+    "build-meta": "cat src/index.ts | sed -n '/==UserScript==/,/==\\/UserScript==/p' | sed \"s/%%VERSION%%/$(jq -r '.version' package.json)/\" > dist/cors-manager.meta.js",
+    "build-userscript": "esbuild src/index.ts --outfile=dist/cors-manager.user.js --bundle --banner:js=\"$(cat dist/cors-manager.meta.js)\"",
     "clean": "rm -rf dist",
     "prepublishOnly": "pnpm run build"
   },

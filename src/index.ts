@@ -1,15 +1,18 @@
 // ==UserScript==
 // @name        cors-manager
 // @namespace   nenw@cors-manager
+// @version     %%VERSION%%
+// @author      nenw*
+// @description Manage the policy of CORS for allowed origins
 // @match       https://*/*
 // @grant       GM.getValue
 // @grant       GM.setValue
 // @grant       GM.deleteValue
 // @grant       GM.xmlHttpRequest
 // @grant       GM.registerMenuCommand
-// @version     1.0
-// @author      nenw*
-// @description Manage the policy of CORS for allowed origins
+// @homepage    https://github.com/HelloWorld017/cors-manager
+// @updateURL   https://cdn.jsdelivr.net/npm/cors-manager/dist/cors-manager.meta.js
+// @downloadURL https://cdn.jsdelivr.net/npm/cors-manager/dist/cors-manager.user.js
 // ==/UserScript==
 
 import {
