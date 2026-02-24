@@ -8,7 +8,7 @@ It consists of:
 ## Getting Started
 
 ```sh
-npm add cors-manager
+npm install cors-manager
 ```
 
 ```ts
@@ -23,27 +23,27 @@ import {
 // initialize(): Promise<boolean>
 window.addEventListener('load', () => initialize(), { once: true });
 
-// When the user needs request
+// When the initialize() is finished
 if (isInitialized()) {
   const targetUrl = 'https://api.example.com/data';
 
-  if (!(await checkStatus(targetUrl))) {
-    const granted = await requestPermission(targetUrl);
-    if (!granted) {
-      throw new Error('Permission denied by user.');
-    }
+  // requestPermission(url): Promise<boolean>
+  const granted = await requestPermission(targetUrl);
+  if (!granted) {
+    throw new Error('Permission denied by user.');
   }
-
-  const response = await fetchCors(targetUrl, {
-    method: 'GET',
-    headers: {
-      Accept: 'application/json',
-    },
-  });
-
-  const json = await response.json();
-  console.log(json);
 }
+
+// When the request is needed
+const response = await fetchCors(targetUrl, {
+  method: 'GET',
+  headers: {
+    Accept: 'application/json',
+  },
+});
+
+const json = await response.json();
+console.log(json);
 ```
 
 ## Requirements
