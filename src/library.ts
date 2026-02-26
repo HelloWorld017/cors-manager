@@ -45,7 +45,7 @@ const isCorsManagerReply = (value: unknown, messageId: string): value is CorsMan
   return true;
 };
 
-const sendMessage = (payload: CorsManagerRequest, timeoutMs: number): Promise<CorsManagerReply | null> => {
+const sendMessage = (payload: CorsManagerRequest, timeoutMs: number | null): Promise<CorsManagerReply | null> => {
   if (typeof window === 'undefined') {
     return Promise.resolve(null);
   }
@@ -55,7 +55,9 @@ const sendMessage = (payload: CorsManagerRequest, timeoutMs: number): Promise<Co
   return new Promise(resolve => {
     const cleanup = () => {
       window.removeEventListener('message', onMessage);
-      window.clearTimeout(timeoutId);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     };
 
     const onMessage = (event: MessageEvent) => {
@@ -66,10 +68,12 @@ const sendMessage = (payload: CorsManagerRequest, timeoutMs: number): Promise<Co
       resolve(event.data);
     };
 
-    const timeoutId = window.setTimeout(() => {
-      cleanup();
-      resolve(null);
-    }, timeoutMs);
+    const timeoutId = timeoutMs !== null
+      ? window.setTimeout(() => {
+          cleanup();
+          resolve(null);
+        }, timeoutMs)
+      : null;
 
     window.addEventListener('message', onMessage);
 
@@ -108,14 +112,20 @@ const toHeaders = (pairs: CorsManagerReply['headers']): Headers => {
   return headers;
 };
 
-export const initialize = async (): Promise<boolean> => {
-  const reply = await sendMessage({ kind: 'init' }, INIT_TIMEOUT_MS);
+export const initialize = async (timeout = true): Promise<boolean> => {
+  const reply = await sendMessage({ kind: 'init' }, timeout ? INIT_TIMEOUT_MS : null);
   const success = reply?.success === true;
   initialized = success;
   return success;
 };
 
-export const isInitialized = (): boolean => initialized;
+export const isInitialized = (): boolean => {
+  if (document.documentElement.dataset['cors-manager']) {
+    initialized = true;
+  }
+
+  return initialized;
+};
 
 export const checkStatus = async (url: RequestInfo | URL): Promise<boolean> => {
   const request = new Request(url);

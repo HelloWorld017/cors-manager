@@ -77,6 +77,14 @@ export type { policySchema, messageSchema };
     catch { return null; }
   };
 
+  const createMessageId = () => {
+    if (typeof globalThis.crypto?.randomUUID === 'function') {
+      return globalThis.crypto.randomUUID();
+    }
+
+    return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  };
+
   const origin = window.location.origin;
   const policyKey = `cors_policy__:${origin}`;
   const policyResult = safeParse(policySchema, safeJSONParse(await GM.getValue<string>(policyKey, '{}')));
@@ -93,6 +101,20 @@ export type { policySchema, messageSchema };
       allowedOrigins: Array.from(policy.allowedOrigins),
     });
 
+  const notifyInitialized = () => {
+    document.documentElement.dataset['cors-manager'] = 'true';
+    window.postMessage({
+      is: 'cors-manager',
+      messageId: createMessageId(),
+      kind: 'initialized',
+      isInitialized: true
+    });
+  };
+
+  if (policy.enabled) {
+    notifyInitialized();
+  }
+
   window.addEventListener('message', async event => {
     if (event.origin !== origin) return;
 
@@ -101,13 +123,14 @@ export type { policySchema, messageSchema };
 
     const data = dataResult.output;
     const reply = (payload: Record<string, unknown>) => window.postMessage(
-      { is: 'cors-manager', messageId: data.messageId, ...payload },
+      { is: 'cors-manager', messageId: data.messageId, kind: `reply/${data.kind}`, ...payload },
       origin
     );
 
     if (data.kind === 'init') {
       if (policy.enabled) {
         reply({ success: true });
+        notifyInitialized();
         return;
       }
 
@@ -123,6 +146,7 @@ export type { policySchema, messageSchema };
           policy.enabled = true;
           await savePolicy();
           reply({ success: true });
+          notifyInitialized();
         }
 
         policy.lastPromptAt = Date.now();
@@ -210,6 +234,6 @@ export type { policySchema, messageSchema };
     policy.enabled = false;
     policy.allowedOrigins.clear();
     await savePolicy();
-    alert('[cors-manager]\n\nSuccessfully revoked permissions!');
+    alert('[cors-manager]\n\nSuccessfully revoked permissions.\nPlease refresh page!');
   });
 })();
