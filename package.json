@@ -1,6 +1,6 @@
 {
   "name": "cors-manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Manage the policy of CORS for allowed origins",
   "type": "module",
   "scripts": {
