@@ -41,7 +41,7 @@ const isCorsManagerReply = (value: unknown, messageId: string): value is CorsMan
   if (value.is !== SIGNATURE) return false;
   if (value.messageId !== messageId) return false;
   if (typeof value.success !== 'boolean') return false;
-  if ('kind' in value) return false;
+  if (typeof value.kind !== 'string' || !value.kind.startsWith('reply/')) return false;
   return true;
 };
 

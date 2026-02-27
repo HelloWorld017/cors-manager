@@ -96,10 +96,10 @@ export type { policySchema, messageSchema };
 
   const savePolicy = () => !policy.enabled
     ? GM.deleteValue(policyKey)
-    : GM.setValue(policyKey, {
+    : GM.setValue(policyKey, JSON.stringify({
       enabled: policy.enabled,
       allowedOrigins: Array.from(policy.allowedOrigins),
-    });
+    }));
 
   const notifyInitialized = () => {
     document.documentElement.dataset.corsManager = 'true';
@@ -203,9 +203,9 @@ export type { policySchema, messageSchema };
           method: data.method as Method,
           url: url.href,
           headers: data.headers,
-          data: data.body,
+          data: data.body?.size ? data.body : undefined,
           responseType: 'blob',
-          binary: !!data.body,
+          binary: !!data.body?.size,
           onload: res => reply({
             success: true,
             status: res.status,
