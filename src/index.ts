@@ -102,7 +102,7 @@ export type { policySchema, messageSchema };
     });
 
   const notifyInitialized = () => {
-    document.documentElement.dataset['cors-manager'] = 'true';
+    document.documentElement.dataset.corsManager = 'true';
     window.postMessage({
       is: 'cors-manager',
       messageId: createMessageId(),

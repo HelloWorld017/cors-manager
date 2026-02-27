@@ -120,7 +120,7 @@ export const initialize = async (timeout = true): Promise<boolean> => {
 };
 
 export const isInitialized = (): boolean => {
-  if (document.documentElement.dataset['cors-manager']) {
+  if (document.documentElement.dataset.corsManager) {
     initialized = true;
   }
 
